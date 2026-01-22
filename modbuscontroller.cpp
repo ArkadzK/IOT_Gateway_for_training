@@ -1,18 +1,78 @@
 #include "modbuscontroller.h"
 #include <QDebug>
+#include <QVariant>
 
 ModbusController::ModbusController(QObject *parent) : QObject(parent)
 {
-    m_connectTimer.setSingleShot(true);
-    m_connectTimer.setInterval(2000); // 2 секунды
+    m_client = new QModbusTcpClient(this);
 
-    connect(&m_connectTimer, &QTimer::timeout,
-            this, &ModbusController::onConnectTimeout);
+    connect(m_client, &QModbusClient::stateChanged,
+            this, &ModbusController::onStateChanged);
+
+    connect(m_client, &QModbusClient::errorOccurred,
+            this, &ModbusController::onErrorOccurred);
 }
 
-ModbusController::ConnectionState ModbusController::state() const
+void ModbusController::connectToServer(const QString &host, int port, int unitId)
 {
-    return m_state;
+    if (host.isEmpty() || port <= 0 || port > 65535) {
+        log("Invalid host or port");
+        return;
+    }
+
+    m_unitId = unitId;
+
+    log(QString("Connect request: %1:%2 (unit %3)")
+        .arg(host).arg(port).arg(unitId));
+
+    if (m_client->state() != QModbusDevice::UnconnectedState)
+        m_client->disconnectDevice();
+
+    m_client->setConnectionParameter(QModbusDevice::NetworkAddressParameter, host);
+    m_client->setConnectionParameter(QModbusDevice::NetworkPortParameter, port);
+    m_client->setTimeout(3000);
+    m_client->setNumberOfRetries(3);
+
+    setState(Connecting);
+    m_client->connectDevice();
+}
+
+void ModbusController::disconnectFromServer()
+{
+    log("Disconnect requested");
+    m_client->disconnectDevice();
+}
+
+void ModbusController::onStateChanged(QModbusDevice::State state)
+{
+    switch (state) {
+    case QModbusDevice::ConnectingState:
+        log("Connecting...");
+        setState(Connecting);
+        break;
+    case QModbusDevice::ConnectedState:
+        log("Connection established");
+        setState(Connected);
+        break;
+    case QModbusDevice::ClosingState:
+        log("Closing connection...");
+        break;
+    case QModbusDevice::UnconnectedState:
+        log("Disconnected");
+        setState(Disconnected);
+        break;
+    default:
+        break;
+    }
+}
+
+void ModbusController::onErrorOccurred(QModbusDevice::Error error)
+{
+    if (error == QModbusDevice::NoError)
+        return;
+
+    log("Connection error: " + m_client->errorString());
+    setState(Error);
 }
 
 void ModbusController::setState(ConnectionState newState)
@@ -22,57 +82,6 @@ void ModbusController::setState(ConnectionState newState)
 
     m_state = newState;
     emit stateChanged();
-
-    qDebug() << "State changed to" << m_state;
-}
-
-void ModbusController::connectToServer(const QString &host, int port, int unitId)
-{
-    if(m_state != Disconnected && m_state != Error)
-        return;
-
-    log(QString("Connect request: %1:%2 (unit %3)")
-            .arg(host)
-            .arg(port)
-            .arg(unitId));
-
-    qDebug() << "Connecting to" << host << port << "unit" << unitId;
-
-    setState(Connecting);
-
-    // Temporary: позже будет реальный Modbus connect
-    m_connectTimer.start();
-}
-
-void ModbusController::disconnectFromServer()
-{
-    if (m_state == Disconnected)
-        return;
-
-    m_connectTimer.stop();
-
-    log("Connection failed");
-    qDebug() << "Disconnected";
-
-    setState(Disconnected);
-}
-
-void ModbusController::onConnectTimeout()
-{
-    // ВРЕМЕННО: имитация результата
-    bool success = true; // попробуй false
-
-    if (success) {
-        log("Connection established");
-        qDebug() << "Connected successfully";
-
-        setState(Connected);
-    } else {
-        log("Connection failed");
-        qDebug() << "Connection failed";
-
-        setState(Error);
-    }
 }
 
 void ModbusController::log(const QString &text)
