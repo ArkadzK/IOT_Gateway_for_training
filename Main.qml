@@ -7,14 +7,16 @@ import Modbus 1.0
 ApplicationWindow {
     visible: true
     width: 720
-    height: 480
+    height: 600
     title: "Modbus Master"
 
     Material.theme: Material.Dark
     Material.accent: Material.Blue
 
     ListModel { id: logModel }
+    ListModel { id: registersModel }
 
+    // Signals handler
     Connections {
         target: modbusController
         function onLogMessage(message) {
@@ -22,6 +24,17 @@ ApplicationWindow {
                 time: Qt.formatTime(new Date(), "hh:mm:ss"),
                 text: message
             })
+        }
+
+        function onHoldingRegistersRead(startAddress, values) {
+            registersModel.clear()
+
+            for (var i = 0; i < values.length; ++i) {
+                registersModel.append({
+                    address: startAddress + i,
+                    value: values[i]
+                })
+            }
         }
     }
 
@@ -43,7 +56,7 @@ ApplicationWindow {
 
                 Label {
                     text: "Modbus connection settings"
-                    font.pixelSize: 20
+                    font.pixelSize: 16
                     Layout.alignment: Qt.AlignHCenter
                 }
 
@@ -90,12 +103,21 @@ ApplicationWindow {
 
                         onClicked: {
                             switch (modbusController.state) {
+
                             case ModbusController.Disconnected:
-                                modbusController.connectToServer(
-                                    hostField.text,
-                                    parseInt(portField.text),
-                                    parseInt(unitField.text)
-                                )
+                                var host = hostField.text
+                                var port = parseInt(portField.text)
+                                var unit = parseInt(unitField.text)
+
+                                if (!host || isNaN(port) || isNaN(unit)) {
+                                    logModel.append({
+                                        time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                        text: "Invalid connection parameters"
+                                    })
+                                    return
+                                }
+
+                                modbusController.connectToServer(host, port, unit)
                                 break
 
                             case ModbusController.Connected:
@@ -115,7 +137,112 @@ ApplicationWindow {
                 }
             }
         }
+        // Holding Registers panel
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 300
+            radius: 8
+            color: "#1b1b1f"
 
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 8
+
+                Label {
+                    text: "Holding registers"
+                    font.pixelSize: 18
+                }
+                // READ block
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    TextField {
+                        id: readAddressField
+                        placeholderText: "Start address"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        Layout.preferredWidth: 120
+                    }
+
+                    TextField {
+                        id: readCountField
+                        placeholderText: "Count"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        Layout.preferredWidth: 80
+                    }
+
+                    Button {
+                        text: "Read"
+                        enabled: modbusController.state === ModbusController.Connected
+
+                        onClicked: {
+                            var addr = parseInt(readAddressField.text)
+                            var cnt  = parseInt(readCountField.text)
+                            if (isNaN(addr) || isNaN(cnt) || cnt <= 0) {
+                                logModel.append({
+                                    time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                    text: "Invalid read parameters"
+                                })
+                                return
+                            }
+                            modbusController.readHoldingRegisters(addr, cnt)
+                        }
+                    }
+                }
+                // WRITE block
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    TextField {
+                        id: writeAddressField
+                        placeholderText: "Address"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        Layout.preferredWidth: 120
+                    }
+
+                    TextField {
+                        id: writeValueField
+                        placeholderText: "Value"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        Layout.preferredWidth: 120
+                    }
+
+                    Button {
+                        text: "Write"
+                        enabled: modbusController.state === ModbusController.Connected
+
+                        onClicked: {
+                            var addr = parseInt(writeAddressField.text)
+                            var val  = parseInt(writeValueField.text)
+                            if (isNaN(addr) || addr < 0 || isNaN(val)) {
+                                logModel.append({
+                                    time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                    text: "Invalid write parameters"
+                                })
+                                return
+                            }
+                            modbusController.writeHoldingRegister(addr, val)
+                        }
+                    }
+                }
+                // REGISTERS list
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    model: registersModel
+                    clip: true
+
+                    delegate: Text {
+                        text: "HR[" + address + "] = " + value
+                        color: "lightblue"
+                        font.pixelSize: 12
+                    }
+                }
+            }
+        }
+        // LOG panel
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -162,7 +289,7 @@ ApplicationWindow {
             }
         }
     }
-
+    // Auto-scroll log
     Connections {
         target: logModel
         function onCountChanged() {
