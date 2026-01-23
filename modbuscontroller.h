@@ -31,9 +31,14 @@ public:
     Q_INVOKABLE void connectToServer(const QString &host, int port, int unitId);
     Q_INVOKABLE void disconnectFromServer();
 
+    Q_INVOKABLE void readHoldingRegisters(int startAddress, int count);
+    Q_INVOKABLE void writeHoldingRegister(int address, int value);
+
 signals:
     void stateChanged();
     void logMessage(const QString &message);
+
+    void holdingRegistersRead(int startAddress, const QVector<quint16> &values); // Регистры 16бит
 
 private slots:
     void onStateChanged(QModbusDevice::State state);
