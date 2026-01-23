@@ -1,4 +1,5 @@
 import QtQuick
+//import QtQuick.Controls 2.15
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls.Material
@@ -227,17 +228,74 @@ ApplicationWindow {
                         }
                     }
                 }
+
                 // REGISTERS list
-                ListView {
+                ColumnLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    model: registersModel
-                    clip: true
+                    spacing: 4
 
-                    delegate: Text {
-                        text: "HR[" + address + "] = " + value
-                        color: "lightblue"
-                        font.pixelSize: 12
+                    // Table's headers
+                    Row {
+                        Layout.fillWidth: true
+                        height: 28
+
+                        Rectangle {
+                            width: 120
+                            height: parent.height
+                            color: "#333"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Address"
+                                color: "lightgray"
+                            }
+                        }
+
+                        Rectangle {
+                            width: 120
+                            height: parent.height
+                            color: "#333"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Value"
+                                color: "lightgray"
+                            }
+                        }
+                    }
+
+                    // Table of register's data
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: registersModel
+                        clip: true
+                        spacing: 1
+
+                        delegate: Row {
+                            height: 28
+
+                            Rectangle {
+                                width: 120
+                                height: parent.height
+                                color: (index % 2 === 0) ? "#222" : "#2a2a2a"
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    text: address
+                                }
+                            }
+
+                            Rectangle {
+                                width: 120
+                                height: parent.height
+                                color: (index % 2 === 0) ? "#222" : "#2a2a2a"
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    text: value
+                                }
+                            }
+                        }
                     }
                 }
             }
