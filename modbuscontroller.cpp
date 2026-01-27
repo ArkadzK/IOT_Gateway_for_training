@@ -183,3 +183,136 @@ void ModbusController::writeHoldingRegister(int address, int value)
     }
 }
 
+void ModbusController::readCoils(int startAddress, int count)
+{
+    if (!m_client || m_client->state() != QModbusDevice::ConnectedState) {
+        log("Cannot read coils: not connected");
+        return;
+    }
+
+    if (count <= 0) {
+        log("Cannot read coils: count must be > 0");
+        return;
+    }
+
+    QModbusDataUnit request(QModbusDataUnit::Coils, startAddress, count);
+
+    auto *reply = m_client->sendReadRequest(request, m_unitId);
+    if (!reply) {
+        log("Read coils request failed to send");
+        return;
+    }
+
+    if (!reply->isFinished()) {
+        connect(reply, &QModbusReply::finished, this,
+                [this, reply, startAddress]() {
+                    reply->deleteLater();
+
+                    if (reply->error() != QModbusDevice::NoError) {
+                        log("Read coils error: " + reply->errorString());
+                        return;
+                    }
+
+                    const QModbusDataUnit unit = reply->result();
+                    QVector<bool> values;
+                    values.reserve(unit.valueCount());
+
+                    for (uint i = 0; i < unit.valueCount(); ++i)
+                        values.append(unit.value(i));
+
+                    log(QString("Read %1 coils from %2")
+                            .arg(unit.valueCount())
+                            .arg(startAddress));
+
+                    emit coilsRead(startAddress, values);
+                });
+    } else {
+        reply->deleteLater();
+    }
+}
+
+void ModbusController::writeSingleCoil(int address, bool value)
+{
+    if (!m_client || m_client->state() != QModbusDevice::ConnectedState) {
+        log("Cannot write coil: not connected");
+        return;
+    }
+
+    if (address < 0) {
+        log("Cannot write coil: invalid address");
+        return;
+    }
+
+    QModbusDataUnit request(QModbusDataUnit::Coils, address, 1);
+    request.setValue(0, value);
+
+    auto *reply = m_client->sendWriteRequest(request, m_unitId);
+    if (!reply) {
+        log("Write coil request failed to send");
+        return;
+    }
+
+    if (!reply->isFinished()) {
+        connect(reply, &QModbusReply::finished, this,
+                [this, reply, address, value]() {
+                    reply->deleteLater();
+
+                    if (reply->error() != QModbusDevice::NoError) {
+                        log("Write coil error: " + reply->errorString());
+                        return;
+                    }
+
+                    log(QString("Wrote coil %1 = %2")
+                            .arg(address)
+                            .arg(value));
+
+                    emit coilWritten(address, value);
+                });
+    } else {
+        reply->deleteLater();
+    }
+}
+
+void ModbusController::writeMultipleCoils(int startAddress, const QVector<bool> &values)
+{
+    if (!m_client || m_client->state() != QModbusDevice::ConnectedState) {
+        log("Cannot write coils: not connected");
+        return;
+    }
+
+    if (values.isEmpty()) {
+        log("Cannot write coils: values list is empty");
+        return;
+    }
+
+    QModbusDataUnit request(QModbusDataUnit::Coils, startAddress, values.size());
+
+    for (int i = 0; i < values.size(); ++i)
+        request.setValue(i, values[i]);
+
+    auto *reply = m_client->sendWriteRequest(request, m_unitId);
+    if (!reply) {
+        log("Write multiple coils request failed to send");
+        return;
+    }
+
+    if (!reply->isFinished()) {
+        connect(reply, &QModbusReply::finished, this,
+                [this, reply, startAddress, values]() {
+                    reply->deleteLater();
+
+                    if (reply->error() != QModbusDevice::NoError) {
+                        log("Write multiple coils error: " + reply->errorString());
+                        return;
+                    }
+
+                    log(QString("Wrote %1 coils starting at %2")
+                            .arg(values.size())
+                            .arg(startAddress));
+
+                    emit multipleCoilsWritten(startAddress, values.size());
+                });
+    } else {
+        reply->deleteLater();
+    }
+}
