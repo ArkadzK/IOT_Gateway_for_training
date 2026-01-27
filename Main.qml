@@ -150,277 +150,285 @@ ApplicationWindow {
                 }
             }
         }
-        // Holding Registers panel
-        Rectangle {
+
+        // Holding Registers + Coils side by side
+        RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 160
-            radius: 8
-            color: "#1b1b1f"
+            spacing: 16
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 16
-                // Left panel (READ / WRITE)
-                ColumnLayout {
-                    Layout.preferredWidth: 200
-                    spacing: 8
-                    Label {
-                        text: "Holding registers"
-                        font.pixelSize: 18
-                    }
+            // Holding Registers panel
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 160
+                radius: 8
+                color: "#1b1b1f"
 
-                    // READ BLOCK
-                    RowLayout {
-                        Layout.fillWidth: true
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 16
+                    // Left panel (READ / WRITE)
+                    ColumnLayout {
+                        Layout.preferredWidth: 200
                         spacing: 8
-
-                        TextField {
-                            id: readAddressField
-                            placeholderText: "Start address"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 120
+                        Label {
+                            text: "Holding registers"
+                            font.pixelSize: 18
                         }
 
-                        TextField {
-                            id: readCountField
-                            placeholderText: "Count"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 80
-                        }
+                        // READ BLOCK
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
 
-                        Button {
-                            text: "Read"
-                            enabled: modbusController.state === ModbusController.Connected
-                            onClicked: {
-                                var addr = parseInt(readAddressField.text)
-                                var cnt = parseInt(readCountField.text)
+                            TextField {
+                                id: readAddressField
+                                placeholderText: "Start address"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 120
+                            }
 
-                                if (isNaN(addr) || isNaN(cnt) || cnt <= 0) {
-                                    logModel.append({
-                                        time: Qt.formatTime(new Date(), "hh:mm:ss"),
-                                        text: "Invalid read parameters"
-                                    })
-                                    return
+                            TextField {
+                                id: readCountField
+                                placeholderText: "Count"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 80
+                            }
+
+                            Button {
+                                text: "Read"
+                                enabled: modbusController.state === ModbusController.Connected
+                                onClicked: {
+                                    var addr = parseInt(readAddressField.text)
+                                    var cnt = parseInt(readCountField.text)
+
+                                    if (isNaN(addr) || isNaN(cnt) || cnt <= 0) {
+                                        logModel.append({
+                                            time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                            text: "Invalid read parameters"
+                                        })
+                                        return
+                                    }
+
+                                    modbusController.readHoldingRegisters(addr, cnt)
                                 }
+                            }
+                        }
 
-                                modbusController.readHoldingRegisters(addr, cnt)
+                        // WRITE BLOCK
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            TextField {
+                                id: writeAddressField
+                                placeholderText: "Address"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 120
+                            }
+
+                            TextField {
+                                id: writeValueField
+                                placeholderText: "Value"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 120
+                            }
+
+                            Button {
+                                text: "Write"
+                                enabled: modbusController.state === ModbusController.Connected
+
+                                onClicked: {
+                                    var addr = parseInt(writeAddressField.text)
+                                    var val = parseInt(writeValueField.text)
+
+                                    if (isNaN(addr) || addr < 0 || isNaN(val)) {
+                                        logModel.append({
+                                            time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                            text: "Invalid write parameters"
+                                        })
+                                        return
+                                    }
+
+                                    modbusController.writeHoldingRegister(addr, val)
+                                }
                             }
                         }
                     }
-
-                    // WRITE BLOCK
-                    RowLayout {
+                    // Right panel (table)
+                    ListView {
                         Layout.fillWidth: true
-                        spacing: 8
+                        Layout.fillHeight: true
+                        model: registersModel
+                        clip: true
+                        spacing: 1
 
-                        TextField {
-                            id: writeAddressField
-                            placeholderText: "Address"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 120
-                        }
+                        delegate: Row {
+                            height: 28
 
-                        TextField {
-                            id: writeValueField
-                            placeholderText: "Value"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 120
-                        }
-
-                        Button {
-                            text: "Write"
-                            enabled: modbusController.state === ModbusController.Connected
-
-                            onClicked: {
-                                var addr = parseInt(writeAddressField.text)
-                                var val = parseInt(writeValueField.text)
-
-                                if (isNaN(addr) || addr < 0 || isNaN(val)) {
-                                    logModel.append({
-                                        time: Qt.formatTime(new Date(), "hh:mm:ss"),
-                                        text: "Invalid write parameters"
-                                    })
-                                    return
+                            Rectangle {
+                                width: 120
+                                height: parent.height
+                                color: (index % 2 === 0) ? "#222" : "#2a2a2a"
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    text: address
                                 }
-
-                                modbusController.writeHoldingRegister(addr, val)
                             }
-                        }
-                    }
-                }
-                // Right panel (table)
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: registersModel
-                    clip: true
-                    spacing: 1
 
-                    delegate: Row {
-                        height: 28
-
-                        Rectangle {
-                            width: 120
-                            height: parent.height
-                            color: (index % 2 === 0) ? "#222" : "#2a2a2a"
-                            Text {
-                                anchors.centerIn: parent
-                                color: "white"
-                                text: address
-                            }
-                        }
-
-                        Rectangle {
-                            width: 120
-                            height: parent.height
-                            color: (index % 2 === 0) ? "#222" : "#2a2a2a"
-                            Text {
-                                anchors.centerIn: parent
-                                color: "white"
-                                text: value
+                            Rectangle {
+                                width: 120
+                                height: parent.height
+                                color: (index % 2 === 0) ? "#222" : "#2a2a2a"
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    text: value
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Coils panel
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 160
-            radius: 8
-            color: "#1b1b1f"
+            // Coils panel
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 160
+                radius: 8
+                color: "#1b1b1f"
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 16
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 16
 
-                // Left panel (READ / WRITE)
-                ColumnLayout {
-                    Layout.preferredWidth: 200
-                    spacing: 8
-
-                    Label {
-                        text: "Coils"
-                        font.pixelSize: 18
-                    }
-
-                    // READ BLOCK
-                    RowLayout {
-                        Layout.fillWidth: true
+                    // Left panel (READ / WRITE)
+                    ColumnLayout {
+                        Layout.preferredWidth: 200
                         spacing: 8
 
-                        TextField {
-                            id: readCoilsAddressField
-                            placeholderText: "Start address"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 120
+                        Label {
+                            text: "Coils"
+                            font.pixelSize: 18
                         }
 
-                        TextField {
-                            id: readCoilsCountField
-                            placeholderText: "Count"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 80
-                        }
+                        // READ BLOCK
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
 
-                        Button {
-                            text: "Read"
-                            enabled: modbusController.state === ModbusController.Connected
+                            TextField {
+                                id: readCoilsAddressField
+                                placeholderText: "Start address"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 120
+                            }
 
-                            onClicked: {
-                                var addr = parseInt(readCoilsAddressField.text)
-                                var cnt = parseInt(readCoilsCountField.text)
+                            TextField {
+                                id: readCoilsCountField
+                                placeholderText: "Count"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 80
+                            }
 
-                                if (isNaN(addr) || isNaN(cnt) || cnt <= 0) {
-                                    logModel.append({
-                                        time: Qt.formatTime(new Date(), "hh:mm:ss"),
-                                        text: "Invalid coil read parameters"
-                                    })
-                                    return
+                            Button {
+                                text: "Read"
+                                enabled: modbusController.state === ModbusController.Connected
+
+                                onClicked: {
+                                    var addr = parseInt(readCoilsAddressField.text)
+                                    var cnt = parseInt(readCoilsCountField.text)
+
+                                    if (isNaN(addr) || isNaN(cnt) || cnt <= 0) {
+                                        logModel.append({
+                                            time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                            text: "Invalid coil read parameters"
+                                        })
+                                        return
+                                    }
+
+                                    modbusController.readCoils(addr, cnt)
                                 }
+                            }
+                        }
 
-                                modbusController.readCoils(addr, cnt)
+                        // WRITE BLOCK (single coil)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            TextField {
+                                id: writeCoilAddressField
+                                placeholderText: "Address"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 120
+                            }
+
+                            ComboBox {
+                                id: writeCoilValueField
+                                Layout.preferredWidth: 120
+                                model: ["false", "true"]
+                            }
+
+                            Button {
+                                text: "Write"
+                                enabled: modbusController.state === ModbusController.Connected
+
+                                onClicked: {
+                                    var addr = parseInt(writeCoilAddressField.text)
+                                    var val = (writeCoilValueField.currentText === "true")
+
+                                    if (isNaN(addr) || addr < 0) {
+                                        logModel.append({
+                                            time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                            text: "Invalid coil write parameters"
+                                        })
+                                        return
+                                    }
+
+                                    modbusController.writeSingleCoil(addr, val)
+                                }
                             }
                         }
                     }
 
-                    // WRITE BLOCK (single coil)
-                    RowLayout {
+                    // Right panel (table)
+                    ListView {
                         Layout.fillWidth: true
-                        spacing: 8
+                        Layout.fillHeight: true
+                        model: coilsModel
+                        clip: true
+                        spacing: 1
 
-                        TextField {
-                            id: writeCoilAddressField
-                            placeholderText: "Address"
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            Layout.preferredWidth: 120
-                        }
+                        delegate: Row {
+                            height: 28
 
-                        ComboBox {
-                            id: writeCoilValueField
-                            Layout.preferredWidth: 120
-                            model: ["false", "true"]
-                        }
-
-                        Button {
-                            text: "Write"
-                            enabled: modbusController.state === ModbusController.Connected
-
-                            onClicked: {
-                                var addr = parseInt(writeCoilAddressField.text)
-                                var val = (writeCoilValueField.currentText === "true")
-
-                                if (isNaN(addr) || addr < 0) {
-                                    logModel.append({
-                                        time: Qt.formatTime(new Date(), "hh:mm:ss"),
-                                        text: "Invalid coil write parameters"
-                                    })
-                                    return
+                            Rectangle {
+                                width: 120
+                                height: parent.height
+                                color: (index % 2 === 0) ? "#222" : "#2a2a2a"
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    text: address
                                 }
-
-                                modbusController.writeSingleCoil(addr, val)
                             }
-                        }
-                    }
-                }
 
-                // Right panel (table)
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: coilsModel
-                    clip: true
-                    spacing: 1
+                            Rectangle {
+                                width: 120
+                                height: parent.height
+                                color: (index % 2 === 0) ? "#222" : "#2a2a2a"
 
-                    delegate: Row {
-                        height: 28
+                                Switch {
+                                    anchors.centerIn: parent
+                                    checked: value
 
-                        Rectangle {
-                            width: 120
-                            height: parent.height
-                            color: (index % 2 === 0) ? "#222" : "#2a2a2a"
-                            Text {
-                                anchors.centerIn: parent
-                                color: "white"
-                                text: address
-                            }
-                        }
-
-                        Rectangle {
-                            width: 120
-                            height: parent.height
-                            color: (index % 2 === 0) ? "#222" : "#2a2a2a"
-
-                            Switch {
-                                anchors.centerIn: parent
-                                checked: value
-
-                                onToggled: {
-                                    modbusController.writeSingleCoil(address, checked)
+                                    onToggled: {
+                                        modbusController.writeSingleCoil(address, checked)
+                                    }
                                 }
                             }
                         }
