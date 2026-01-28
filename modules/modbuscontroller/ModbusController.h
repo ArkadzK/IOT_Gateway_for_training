@@ -8,6 +8,7 @@
 #include <QtSerialBus/QModbusTcpClient>
 // #include <QtSerialBus/QModbusClient>
 #include <QtSerialBus/QModbusDevice>
+#include <QMqttClient>
 
 class ModbusController : public QObject
 {
@@ -37,6 +38,13 @@ public:
     Q_INVOKABLE void readCoils(int startAddress, int count);
     Q_INVOKABLE void writeSingleCoil(int address, bool value);
     Q_INVOKABLE void writeMultipleCoils(int startAddress, const QVector<bool>& values);
+    // MQTT-client
+    Q_INVOKABLE void mqttConnect(const QString &host, int port);
+    Q_INVOKABLE void mqttDisconnect();
+    Q_INVOKABLE void mqttPublish(const QString &topic,
+                                 const QString &payload,
+                                 int qos = 0,
+                                 bool retain = false);
 
 signals:
     void stateChanged();
@@ -54,7 +62,8 @@ private slots:
 
 private:
     void setState(ConnectionState newState);
-    void log(const QString &text);
+    void log(const QString &text);    
+    QMqttClient *m_mqtt = nullptr;
 
     ConnectionState m_state = Disconnected;
     QModbusTcpClient *m_client = nullptr;

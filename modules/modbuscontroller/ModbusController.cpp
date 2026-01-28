@@ -5,6 +5,9 @@
 
 #include "modbuscontroller.h"
 
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonDocument>
 
 ModbusController::ModbusController(QObject *parent) : QObject(parent)
 {
@@ -136,6 +139,19 @@ void ModbusController::readHoldingRegisters(int startAddress, int count)
                     .arg(startAddress));
 
             emit holdingRegistersRead(startAddress, values);
+
+            QJsonArray arr;
+            for (quint16 v : values)
+                arr.append(static_cast<int>(v));
+
+            QJsonObject obj;
+            obj["type"] = "holding_registers";
+            obj["start"] = startAddress;
+            obj["values"] = arr;
+
+            QJsonDocument doc(obj);
+            mqttPublish("modbus/holding", QString::fromUtf8(doc.toJson(QJsonDocument::Compact)), 1);
+
         });
     } else {
         // Синхронный ответ (редко, но по API надо обработать) - от Copilot
@@ -225,6 +241,21 @@ void ModbusController::readCoils(int startAddress, int count)
                             .arg(startAddress));
 
                     emit coilsRead(startAddress, values);
+
+                    emit coilsRead(startAddress, values);
+
+                    QJsonArray arr;
+                    for (bool v : values)
+                        arr.append(v);
+
+                    QJsonObject obj;
+                    obj["type"] = "coils";
+                    obj["start"] = startAddress;
+                    obj["values"] = arr;
+
+                    QJsonDocument doc(obj);
+                    mqttPublish("modbus/coils", QString::fromUtf8(doc.toJson(QJsonDocument::Compact)), 1);  //QoS = 1
+
                 });
     } else {
         reply->deleteLater();
@@ -314,5 +345,54 @@ void ModbusController::writeMultipleCoils(int startAddress, const QVector<bool> 
                 });
     } else {
         reply->deleteLater();
+    }
+}
+
+void ModbusController::mqttConnect(const QString &host, int port)
+{
+    if (!m_mqtt) {
+        m_mqtt = new QMqttClient(this);
+
+        connect(m_mqtt, &QMqttClient::stateChanged, this, [this](QMqttClient::ClientState s){
+            log("MQTT state: " + QString::number(s));
+        });
+
+        connect(m_mqtt, &QMqttClient::errorChanged, this, [this](){
+            log("MQTT error: " + m_mqtt->errorString());
+        });
+    }
+
+    m_mqtt->setHostname(host);
+    m_mqtt->setPort(port);
+
+    log(QString("MQTT connect to %1:%2").arg(host).arg(port));
+    m_mqtt->connectToHost();
+}
+
+void ModbusController::mqttDisconnect()
+{
+    if (!m_mqtt)
+        return;
+
+    log("MQTT disconnect requested");
+    m_mqtt->disconnectFromHost();
+}
+
+void ModbusController::mqttPublish(const QString &topic,
+                                   const QString &payload,
+                                   int qos,
+                                   bool retain)
+{
+    if (!m_mqtt || m_mqtt->state() != QMqttClient::Connected) {
+        log("MQTT publish failed: not connected");
+        return;
+    }
+
+    auto res = m_mqtt->publish(topic, payload.toUtf8(), qos, retain);
+    if (res == -1) {
+        log("MQTT publish error: failed to queue message");
+    } else {
+        log(QString("MQTT published (qos=%1, retain=%2) to %3: %4")
+                .arg(qos).arg(retain).arg(topic, payload));
     }
 }
