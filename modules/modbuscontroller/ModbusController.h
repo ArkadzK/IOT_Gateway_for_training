@@ -2,13 +2,13 @@
 #define __MODBUSCONTROLLER_H__
 
 #include <QObject>
-// #include <QString>
 #include <QTimer>
 // Проверить установку пакетов Qt Serial Bus и Qt Serial Port (без последнего не соберётся!)
 #include <QtSerialBus/QModbusTcpClient>
 // #include <QtSerialBus/QModbusClient>
 #include <QtSerialBus/QModbusDevice>
-#include <QMqttClient>
+
+#include <mqtt/async_client.h>
 
 class ModbusController : public QObject
 {
@@ -62,9 +62,13 @@ private slots:
 
 private:
     void setState(ConnectionState newState);
-    void log(const QString &text);    
-    QMqttClient *m_mqtt = nullptr;
+    void log(const QString &text);
 
+    // MQTT (paho)
+    std::unique_ptr<mqtt::async_client> m_mqttClient;
+    mqtt::connect_options m_mqttConnOpts;
+
+    // Modbus
     ConnectionState m_state = Disconnected;
     QModbusTcpClient *m_client = nullptr;
 

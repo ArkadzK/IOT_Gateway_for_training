@@ -5,6 +5,8 @@
 
 #include "modbuscontroller.h"
 
+#include <mqtt/async_client.h>
+
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -18,6 +20,8 @@ ModbusController::ModbusController(QObject *parent) : QObject(parent)
 
     connect(m_client, &QModbusClient::errorOccurred,
             this, &ModbusController::onErrorOccurred);
+
+    // MQTT: пока ничего не создаём — создадим при первом подключении
 }
 
 void ModbusController::connectToServer(const QString &host, int port, int unitId)
@@ -350,32 +354,47 @@ void ModbusController::writeMultipleCoils(int startAddress, const QVector<bool> 
 
 void ModbusController::mqttConnect(const QString &host, int port)
 {
-    if (!m_mqtt) {
-        m_mqtt = new QMqttClient(this);
+    const std::string server = host.toStdString() + ":" + std::to_string(port);
 
-        connect(m_mqtt, &QMqttClient::stateChanged, this, [this](QMqttClient::ClientState s){
-            log("MQTT state: " + QString::number(s));
-        });
+    try {
+        if (!m_mqttClient) {
+            m_mqttClient = std::make_unique<mqtt::async_client>(server, "iotgateway-client");
 
-        connect(m_mqtt, &QMqttClient::errorChanged, this, [this](){
-            log("MQTT error: " + m_mqtt->errorString());
-        });
+            m_mqttConnOpts = mqtt::connect_options_builder()
+                                 .clean_session(true)
+                                 // .automatic_reconnect(true, std::chrono::seconds(1), std::chrono::seconds(30))
+                                 .finalize();
+            m_mqttConnOpts.set_automatic_reconnect(true);
+        }
+
+        log(QString("MQTT connecting to %1:%2").arg(host).arg(port));
+
+        auto tok = m_mqttClient->connect(m_mqttConnOpts);
+        tok->wait();
+
+        log("MQTT connected");
     }
-
-    m_mqtt->setHostname(host);
-    m_mqtt->setPort(port);
-
-    log(QString("MQTT connect to %1:%2").arg(host).arg(port));
-    m_mqtt->connectToHost();
+    catch (const mqtt::exception &ex) {
+        log(QString("MQTT connect error: %1").arg(ex.what()));
+    }
 }
 
 void ModbusController::mqttDisconnect()
 {
-    if (!m_mqtt)
+    if (!m_mqttClient) {
+        log("MQTT disconnect: client not created");
         return;
+    }
 
-    log("MQTT disconnect requested");
-    m_mqtt->disconnectFromHost();
+    try {
+        log("MQTT disconnect requested");
+        auto tok = m_mqttClient->disconnect();
+        tok->wait();
+        log("MQTT disconnected");
+    }
+    catch (const mqtt::exception &ex) {
+        log(QString("MQTT disconnect error: %1").arg(ex.what()));
+    }
 }
 
 void ModbusController::mqttPublish(const QString &topic,
@@ -383,16 +402,23 @@ void ModbusController::mqttPublish(const QString &topic,
                                    int qos,
                                    bool retain)
 {
-    if (!m_mqtt || m_mqtt->state() != QMqttClient::Connected) {
+    if (!m_mqttClient || !m_mqttClient->is_connected()) {
         log("MQTT publish failed: not connected");
         return;
     }
 
-    auto res = m_mqtt->publish(topic, payload.toUtf8(), qos, retain);
-    if (res == -1) {
-        log("MQTT publish error: failed to queue message");
-    } else {
-        log(QString("MQTT published (qos=%1, retain=%2) to %3: %4")
-                .arg(qos).arg(retain).arg(topic, payload));
+    try {
+        auto msg = mqtt::make_message(topic.toStdString(),
+                                      payload.toStdString(),
+                                      qos,
+                                      retain);
+
+        m_mqttClient->publish(msg)->wait();
+
+        log(QString("MQTT published to %1: %2")
+                .arg(topic, payload));
+    }
+    catch (const mqtt::exception &ex) {
+        log(QString("MQTT publish error: %1").arg(ex.what()));
     }
 }
