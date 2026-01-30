@@ -2,7 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls.Material
-import Modbus 1.0
+// import ModbusMaster 1.0
+
+import Backend 1.0
 
 ApplicationWindow {
     visible: true
@@ -13,6 +15,11 @@ ApplicationWindow {
     Material.theme: Material.Dark
     Material.accent: Material.Blue
 
+    // Create service (or receive it from contextProperty)
+    AppService {
+        id: app
+    }
+
     ListModel { id: logModel }
     ListModel { id: registersModel }
     ListModel { id: coilsModel }
@@ -20,7 +27,7 @@ ApplicationWindow {
 
     // Signals handler
     Connections {
-        target: modbusController
+        target: app
         function onLogMessage(message) {
             logModel.append({
                 time: Qt.formatTime(new Date(), "hh:mm:ss"),
@@ -144,6 +151,78 @@ ApplicationWindow {
                                     parseInt(unitField.text)
                                 )
                                 break
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 120
+                    radius: 8
+                    color: "#1b1b1f"
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 16
+
+                        Label {
+                            text: "MQTT connection settings"
+                            font.pixelSize: 16
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 16
+
+                            TextField {
+                                id: mqttHostField
+                                placeholderText: "MQTT host"
+                                Layout.fillWidth: true
+                            }
+
+                            TextField {
+                                id: mqttPortField
+                                placeholderText: "Port"
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                Layout.preferredWidth: 80
+                            }
+
+                            ComboBox {
+                                id: mqttQosField
+                                Layout.preferredWidth: 100
+                                model: [
+                                    { text: "QoS 0", value: 0 },
+                                    { text: "QoS 1", value: 1 },
+                                    { text: "QoS 2", value: 2 }
+                                ]
+                                textRole: "text"
+                            }
+
+                            Button {
+                                Layout.preferredWidth: 120
+                                text: app.mqttConnected ? "Disconnect" : "Connect"
+
+                                onClicked: {
+                                    if (!app.mqttConnected) {
+                                        var host = mqttHostField.text
+                                        var port = parseInt(mqttPortField.text)
+                                        var qos  = mqttQosField.model[mqttQosField.currentIndex].value
+
+                                        if (!host || isNaN(port)) {
+                                            logModel.append({
+                                                time: Qt.formatTime(new Date(), "hh:mm:ss"),
+                                                text: "Invalid MQTT parameters"
+                                            })
+                                            return
+                                        }
+
+                                        app.connectMqtt(host, port, qos)
+                                    } else {
+                                        app.disconnectMqtt()
+                                    }
+                                }
                             }
                         }
                     }
