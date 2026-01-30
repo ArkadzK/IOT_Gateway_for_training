@@ -1,22 +1,35 @@
 cmake_minimum_required(VERSION 3.16)
+
 project(IoTGateway LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
 
-# Пути к модулям
+find_package(Qt6 REQUIRED COMPONENTS Core Quick)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick SerialBus)
+
+add_subdirectory(modules/appservice)
 add_subdirectory(modules/messagequeue)
 add_subdirectory(modules/mqttworker)
 add_subdirectory(modules/modbuscontroller)
 
-# Основное приложение
-add_executable(${PROJECT_NAME}
-    main.cpp
+qt_add_resources(APP_RESOURCES
+    resources.qrc
 )
 
-# Линкуем модули
+add_executable(${PROJECT_NAME}
+    main.cpp
+    ${APP_RESOURCES}
+    modules/appservice/AppService.h
+    modules/appservice/AppService.cpp
+)
+
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
+        Qt6::Core
+        Qt6::Quick
+        appservice
         messagequeue
         mqttworker
         modbuscontroller
