@@ -7,23 +7,33 @@
 void MessageQueue::push(const MqttPacket& packet)
 {
     QMutexLocker locker(&m_mutex);
+
+    if (m_stopped)
+        return;
     m_queue.append(packet);
     m_wait.wakeOne();
 }
 
-void MessageQueue::waitAndPop(MqttPacket& packet)
+bool MessageQueue::waitAndPop(MqttPacket& packet)
 {
     QMutexLocker locker(&m_mutex);
 
-    while (m_queue.isEmpty())
+    while (m_queue.isEmpty() && !m_stopped)
         m_wait.wait(&m_mutex);
 
+    if (m_stopped)
+        return false;
     packet = m_queue.takeFirst();
+    return true;
 }
 
 void MessageQueue::returnBack(const MqttPacket& packet)
 {
     QMutexLocker locker(&m_mutex);
+
+    if (m_stopped)
+        return;
+
     m_queue.prepend(packet);
     m_wait.wakeOne();
 }
@@ -32,6 +42,21 @@ int MessageQueue::size() const
 {
     QMutexLocker locker(&m_mutex);
     return m_queue.size();
+}
+
+void MessageQueue::stop()
+{
+    QMutexLocker locker(&m_mutex);
+    m_stopped = true;
+    m_wait.wakeAll();
+}
+
+void MessageQueue::reset()
+{
+    QMutexLocker locker(&m_mutex);
+    m_stopped = false;
+    m_queue.clear();
+    m_wait.wakeAll();
 }
 
 void MessageQueue::enablePersistence(const QString& path)

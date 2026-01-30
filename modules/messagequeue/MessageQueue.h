@@ -8,7 +8,6 @@
 #include <QUuid>
 #include <QDateTime>
 
-// Структура сообщения, передаваемого в MQTT
 struct MqttPacket
 {
     QString id;            // уникальный идентификатор
@@ -32,17 +31,20 @@ class MessageQueue
 public:
     MessageQueue() = default;
 
-    // Добавить новое сообщение
+    // Add new msg
     void push(const MqttPacket& packet);
 
-    // Блокирующее извлечение
-    void waitAndPop(MqttPacket& packet);
+    // Blocking extraction
+    bool waitAndPop(MqttPacket& packet);
 
-    // Вернуть сообщение обратно (например, после ошибки отправки)
+    // Revert a message (for example, after a sending error)
     void returnBack(const MqttPacket& packet);
 
-    // Текущий размер очереди
+    // Current queue size
     int size() const;
+    // wake up all wait()
+    void stop();
+    void reset(); // clears the queue and removes stop
 
     // В будущем — включение persistence
     void enablePersistence(const QString& path);
@@ -53,6 +55,8 @@ private:
     mutable QMutex m_mutex;
     QWaitCondition m_wait;
     QList<MqttPacket> m_queue;
+
+    bool m_stopped = false;
 
     // persistence
     bool m_persistenceEnabled = false;
