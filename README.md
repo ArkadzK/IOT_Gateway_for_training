@@ -12,7 +12,7 @@ The architecture is designed to be **loosely coupled**, **asynchronous**, and **
 
 ## Key Features
 
-- Modbus RTU / TCP data acquisition
+- Modbus TCP data acquisition
 - MQTT client based on Eclipse Paho
 - Modular architecture with clear separation of responsibilities
 - Message-based communication between modules
@@ -23,21 +23,30 @@ The architecture is designed to be **loosely coupled**, **asynchronous**, and **
 
 ## Architecture
 
+The system follows an **Application Facade** pattern.
+
+- `AppService` orchestrates the system and controls module lifecycles
+- `ModbusController` produces data
+- `MqttWorker` consumes data
+- `MessageQueue` decouples producers and consumers
+- `AppService` does **not** generate business data
+
 ```mermaid
 flowchart TD
     UI[QML UI<br/>Main.qml]
 
     AppService[AppService<br/>Application Facade]
 
-    MQ[MessageQueue<br/>Async Buffer]
-
     Modbus[ModbusController<br/>Modbus RTU/TCP]
+    MQ[MessageQueue<br/>Async Buffer]
     MQTT[MqttWorker<br/>MQTT Client]
 
     UI --> AppService
-    AppService --> MQ
+    AppService --> Modbus
+
     Modbus --> MQ
     MQ --> MQTT
+
     MQTT --> AppService
 ```
 
@@ -68,16 +77,24 @@ ModbusMaster/
 ## Module Description
 
 ### AppService
-Central coordination component of the application.
-
-### MessageQueue
-Asynchronous message buffer between modules.
+- Acts as the central application facade
+- Manages lifecycle and configuration of modules
+- Receives commands from the UI
+- Does **not** produce Modbus or MQTT data
+- May issue control commands (start/stop, configuration changes)
 
 ### ModbusController
-Low-level interface to Modbus devices.
+- Communicates with Modbus TCP devices
+- Periodically reads registers
+- Produces data messages and pushes them to `MessageQueue`
+
+### MessageQueue
+- Asynchronous transport between modules
+- Decouples data producers and consumers
 
 ### MqttWorker
-MQTT client responsible for cloud communication.
+- Consumes messages from `MessageQueue`
+- Publishes data to MQTT broker
 
 ---
 
