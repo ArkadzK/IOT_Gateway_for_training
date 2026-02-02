@@ -30,7 +30,4 @@ target_link_libraries(${PROJECT_NAME}
         Qt6::Core
         Qt6::Quick
         appservice
-        messagequeue
-        mqttworker
-        modbuscontroller
 )
