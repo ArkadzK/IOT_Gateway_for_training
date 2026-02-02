@@ -3,12 +3,12 @@
 
 #include <QObject>
 #include <QTimer>
+
 // Проверить установку пакетов Qt Serial Bus и Qt Serial Port (без последнего не соберётся!)
 #include <QtSerialBus/QModbusTcpClient>
-// #include <QtSerialBus/QModbusClient>
 #include <QtSerialBus/QModbusDevice>
 
-#include <mqtt/async_client.h>
+#include "MessageQueue.h"
 
 class ModbusController : public QObject
 {
@@ -27,7 +27,8 @@ public:
 
     ConnectionState state() const { return m_state; }
 
-    explicit ModbusController(QObject *parent = nullptr);
+    explicit ModbusController(MessageQueue* queue, QObject *parent = nullptr);
+
     // TCP/IP connection
     Q_INVOKABLE void connectToServer(const QString &host, int port, int unitId);
     Q_INVOKABLE void disconnectFromServer();
@@ -38,13 +39,6 @@ public:
     Q_INVOKABLE void readCoils(int startAddress, int count);
     Q_INVOKABLE void writeSingleCoil(int address, bool value);
     Q_INVOKABLE void writeMultipleCoils(int startAddress, const QVector<bool>& values);
-    // MQTT-client
-    Q_INVOKABLE void mqttConnect(const QString &host, int port);
-    Q_INVOKABLE void mqttDisconnect();
-    Q_INVOKABLE void mqttPublish(const QString &topic,
-                                 const QString &payload,
-                                 int qos = 0,
-                                 bool retain = false);
 
 signals:
     void stateChanged();
@@ -64,15 +58,14 @@ private:
     void setState(ConnectionState newState);
     void log(const QString &text);
 
-    // MQTT (paho)
-    std::unique_ptr<mqtt::async_client> m_mqttClient;
-    mqtt::connect_options m_mqttConnOpts;
-
     // Modbus
     ConnectionState m_state = Disconnected;
     QModbusTcpClient *m_client = nullptr;
 
     int m_unitId = 1;
+
+    // MessageQueue
+    MessageQueue* m_queue = nullptr;
 };
 
 #endif // __MODBUSCONTROLLER_H__

@@ -5,13 +5,13 @@
 
 #include "modbuscontroller.h"
 
-#include <mqtt/async_client.h>
-
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonDocument>
 
-ModbusController::ModbusController(QObject *parent) : QObject(parent)
+ModbusController::ModbusController(MessageQueue* queue, QObject *parent)
+    : QObject(parent),
+      m_queue(queue)
 {
     m_client = new QModbusTcpClient(this);
 
@@ -20,8 +20,6 @@ ModbusController::ModbusController(QObject *parent) : QObject(parent)
 
     connect(m_client, &QModbusClient::errorOccurred,
             this, &ModbusController::onErrorOccurred);
-
-    // MQTT: пока ничего не создаём — создадим при первом подключении
 }
 
 void ModbusController::connectToServer(const QString &host, int port, int unitId)
@@ -154,8 +152,14 @@ void ModbusController::readHoldingRegisters(int startAddress, int count)
             obj["values"] = arr;
 
             QJsonDocument doc(obj);
-            mqttPublish("modbus/holding", QString::fromUtf8(doc.toJson(QJsonDocument::Compact)), 1);
-
+            if (m_queue) {
+                m_queue->push(
+                    MqttPacket(
+                        "modbus/holding",
+                        QString::fromUtf8(doc.toJson(QJsonDocument::Compact))
+                        )
+                    );
+            }
         });
     } else {
         // Синхронный ответ (редко, но по API надо обработать) - от Copilot
@@ -258,7 +262,14 @@ void ModbusController::readCoils(int startAddress, int count)
                     obj["values"] = arr;
 
                     QJsonDocument doc(obj);
-                    mqttPublish("modbus/coils", QString::fromUtf8(doc.toJson(QJsonDocument::Compact)), 1);  //QoS = 1
+                    if (m_queue) {
+                        m_queue->push(
+                            MqttPacket(
+                                "modbus/holding",
+                                QString::fromUtf8(doc.toJson(QJsonDocument::Compact))
+                                )
+                            );
+                    }
 
                 });
     } else {
@@ -349,76 +360,5 @@ void ModbusController::writeMultipleCoils(int startAddress, const QVector<bool> 
                 });
     } else {
         reply->deleteLater();
-    }
-}
-
-void ModbusController::mqttConnect(const QString &host, int port)
-{
-    const std::string server = host.toStdString() + ":" + std::to_string(port);
-
-    try {
-        if (!m_mqttClient) {
-            m_mqttClient = std::make_unique<mqtt::async_client>(server, "iotgateway-client");
-
-            m_mqttConnOpts = mqtt::connect_options_builder()
-                                 .clean_session(true)
-                                 // .automatic_reconnect(true, std::chrono::seconds(1), std::chrono::seconds(30))
-                                 .finalize();
-            m_mqttConnOpts.set_automatic_reconnect(true);
-        }
-
-        log(QString("MQTT connecting to %1:%2").arg(host).arg(port));
-
-        auto tok = m_mqttClient->connect(m_mqttConnOpts);
-        tok->wait();
-
-        log("MQTT connected");
-    }
-    catch (const mqtt::exception &ex) {
-        log(QString("MQTT connect error: %1").arg(ex.what()));
-    }
-}
-
-void ModbusController::mqttDisconnect()
-{
-    if (!m_mqttClient) {
-        log("MQTT disconnect: client not created");
-        return;
-    }
-
-    try {
-        log("MQTT disconnect requested");
-        auto tok = m_mqttClient->disconnect();
-        tok->wait();
-        log("MQTT disconnected");
-    }
-    catch (const mqtt::exception &ex) {
-        log(QString("MQTT disconnect error: %1").arg(ex.what()));
-    }
-}
-
-void ModbusController::mqttPublish(const QString &topic,
-                                   const QString &payload,
-                                   int qos,
-                                   bool retain)
-{
-    if (!m_mqttClient || !m_mqttClient->is_connected()) {
-        log("MQTT publish failed: not connected");
-        return;
-    }
-
-    try {
-        auto msg = mqtt::make_message(topic.toStdString(),
-                                      payload.toStdString(),
-                                      qos,
-                                      retain);
-
-        m_mqttClient->publish(msg)->wait();
-
-        log(QString("MQTT published to %1: %2")
-                .arg(topic, payload));
-    }
-    catch (const mqtt::exception &ex) {
-        log(QString("MQTT publish error: %1").arg(ex.what()));
     }
 }
