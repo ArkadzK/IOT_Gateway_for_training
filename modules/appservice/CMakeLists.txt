@@ -8,5 +8,4 @@ target_link_libraries(appservice
         Qt6::Core
         modbuscontroller
         mqttworker
-        messagequeue
 )

@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls.Material
 // import ModbusMaster 1.0
 
-import Backend 1.0
+// import Backend 1.0
 
 ApplicationWindow {
     visible: true
@@ -14,11 +14,6 @@ ApplicationWindow {
 
     Material.theme: Material.Dark
     Material.accent: Material.Blue
-
-    // Create service (or receive it from contextProperty)
-    AppService {
-        id: app
-    }
 
     ListModel { id: logModel }
     ListModel { id: registersModel }
@@ -35,7 +30,7 @@ ApplicationWindow {
             })
         }
 
-        function onHoldingRegistersRead(startAddress, values) {
+        function onRegistersUpdated(startAddress, values) {
             registersModel.clear()
 
             for (var i = 0; i < values.length; ++i) {
@@ -46,7 +41,7 @@ ApplicationWindow {
             }
         }
 
-        function onCoilsRead(startAddress, values) {
+        function onCoilsUpdated(startAddress, values) {
             coilsModel.clear()
 
             for (var i = 0; i < values.length; ++i) {
@@ -86,14 +81,14 @@ ApplicationWindow {
 
                     TextField {
                         id: hostField
-                        enabled: modbusController.state === ModbusController.Disconnected
+                        enabled: app.state === app.Disconnected
                         placeholderText: "IP address"
                         Layout.fillWidth: true
                     }
 
                     TextField {
                         id: portField
-                        enabled: modbusController.state === ModbusController.Disconnected
+                        enabled: app.state === app.Disconnected
                         placeholderText: "Port"
                         inputMethodHints: Qt.ImhDigitsOnly
                         Layout.preferredWidth: 100
@@ -101,7 +96,7 @@ ApplicationWindow {
 
                     TextField {
                         id: unitField
-                        enabled: modbusController.state === ModbusController.Disconnected
+                        enabled: app.state === app.Disconnected
                         placeholderText: "Unit ID"
                         inputMethodHints: Qt.ImhDigitsOnly
                         Layout.preferredWidth: 100
@@ -111,20 +106,20 @@ ApplicationWindow {
                         Layout.preferredWidth: 100
 
                         text: {
-                            switch (modbusController.state) {
-                            case ModbusController.Disconnected: return "Connect"
-                            case ModbusController.Connecting:   return "Connecting..."
-                            case ModbusController.Connected:    return "Disconnect"
-                            case ModbusController.Error:        return "Retry"
+                            switch (app.state) {
+                            case app.Disconnected: return "Connect"
+                            case app.Connecting:   return "Connecting..."
+                            case app.Connected:    return "Disconnect"
+                            case app.Error:        return "Retry"
                             }
                         }
 
-                        enabled: modbusController.state !== ModbusController.Connecting
+                        enabled: app.state !== app.Connecting
 
                         onClicked: {
-                            switch (modbusController.state) {
+                            switch (app.state) {
 
-                            case ModbusController.Disconnected:
+                            case app.Disconnected:
                                 var host = hostField.text
                                 var port = parseInt(portField.text)
                                 var unit = parseInt(unitField.text)
@@ -137,15 +132,15 @@ ApplicationWindow {
                                     return
                                 }
 
-                                modbusController.connectToServer(host, port, unit)
+                                app.connectModbus(host, port, unit)
                                 break
 
-                            case ModbusController.Connected:
-                                modbusController.disconnectFromServer()
+                            case app.Connected:
+                                app.disconnectModbus()
                                 break
 
-                            case ModbusController.Error:
-                                modbusController.connectToServer(
+                            case app.Error:
+                                app.connectModbus(
                                     hostField.text,
                                     parseInt(portField.text),
                                     parseInt(unitField.text)
@@ -277,7 +272,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Read"
-                                enabled: modbusController.state === ModbusController.Connected
+                                enabled: app.state === app.Connected
                                 onClicked: {
                                     var addr = parseInt(readAddressField.text)
                                     var cnt = parseInt(readCountField.text)
@@ -290,7 +285,7 @@ ApplicationWindow {
                                         return
                                     }
 
-                                    modbusController.readHoldingRegisters(addr, cnt)
+                                    app.readRegisters(addr, cnt)
                                 }
                             }
                         }
@@ -316,7 +311,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Write"
-                                enabled: modbusController.state === ModbusController.Connected
+                                enabled: app.state === app.Connected
 
                                 onClicked: {
                                     var addr = parseInt(writeAddressField.text)
@@ -330,7 +325,7 @@ ApplicationWindow {
                                         return
                                     }
 
-                                    modbusController.writeHoldingRegister(addr, val)
+                                    app.writeRegister(addr, val)
                                 }
                             }
                         }
@@ -415,7 +410,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Read"
-                                enabled: modbusController.state === ModbusController.Connected
+                                enabled: app.state === app.Connected
 
                                 onClicked: {
                                     var addr = parseInt(readCoilsAddressField.text)
@@ -429,7 +424,7 @@ ApplicationWindow {
                                         return
                                     }
 
-                                    modbusController.readCoils(addr, cnt)
+                                    app.readCoils(addr, cnt)
                                 }
                             }
                         }
@@ -454,7 +449,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Write"
-                                enabled: modbusController.state === ModbusController.Connected
+                                enabled: app.state === app.Connected
 
                                 onClicked: {
                                     var addr = parseInt(writeCoilAddressField.text)
@@ -468,7 +463,7 @@ ApplicationWindow {
                                         return
                                     }
 
-                                    modbusController.writeSingleCoil(addr, val)
+                                    app.writeCoil(addr, val)
                                 }
                             }
                         }
@@ -506,7 +501,7 @@ ApplicationWindow {
                                     checked: value
 
                                     onToggled: {
-                                        modbusController.writeSingleCoil(address, checked)
+                                        app.writeSingleCoil(address, checked)
                                     }
                                 }
                             }

@@ -9,9 +9,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 
-ModbusController::ModbusController(MessageQueue* queue, QObject *parent)
-    : QObject(parent),
-      m_queue(queue)
+ModbusController::ModbusController (QObject *parent) : QObject(parent)
 {
     m_client = new QModbusTcpClient(this);
 
@@ -90,7 +88,7 @@ void ModbusController::setState(ConnectionState newState)
         return;
 
     m_state = newState;
-    emit stateChanged();
+    emit stateChanged(newState);
 }
 
 void ModbusController::log(const QString &text)
@@ -152,14 +150,7 @@ void ModbusController::readHoldingRegisters(int startAddress, int count)
             obj["values"] = arr;
 
             QJsonDocument doc(obj);
-            if (m_queue) {
-                m_queue->push(
-                    MqttPacket(
-                        "modbus/holding",
-                        QString::fromUtf8(doc.toJson(QJsonDocument::Compact))
-                        )
-                    );
-            }
+
         });
     } else {
         // Синхронный ответ (редко, но по API надо обработать) - от Copilot
@@ -250,8 +241,6 @@ void ModbusController::readCoils(int startAddress, int count)
 
                     emit coilsRead(startAddress, values);
 
-                    emit coilsRead(startAddress, values);
-
                     QJsonArray arr;
                     for (bool v : values)
                         arr.append(v);
@@ -262,15 +251,6 @@ void ModbusController::readCoils(int startAddress, int count)
                     obj["values"] = arr;
 
                     QJsonDocument doc(obj);
-                    if (m_queue) {
-                        m_queue->push(
-                            MqttPacket(
-                                "modbus/holding",
-                                QString::fromUtf8(doc.toJson(QJsonDocument::Compact))
-                                )
-                            );
-                    }
-
                 });
     } else {
         reply->deleteLater();

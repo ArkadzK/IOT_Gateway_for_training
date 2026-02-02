@@ -8,7 +8,7 @@
 #include <QtSerialBus/QModbusTcpClient>
 #include <QtSerialBus/QModbusDevice>
 
-#include "MessageQueue.h"
+// #include "MessageQueue.h"
 
 class ModbusController : public QObject
 {
@@ -27,7 +27,7 @@ public:
 
     ConnectionState state() const { return m_state; }
 
-    explicit ModbusController(MessageQueue* queue, QObject *parent = nullptr);
+    explicit ModbusController(QObject *parent = nullptr);
 
     // TCP/IP connection
     Q_INVOKABLE void connectToServer(const QString &host, int port, int unitId);
@@ -41,11 +41,10 @@ public:
     Q_INVOKABLE void writeMultipleCoils(int startAddress, const QVector<bool>& values);
 
 signals:
-    void stateChanged();
+    void stateChanged(ConnectionState newState);
     void logMessage(const QString &message);
 
     void holdingRegistersRead(int startAddress, const QVector<quint16> &values); // Регистры 16бит
-
     void coilsRead(int startAddress, const QVector<bool>& values);
     void coilWritten(int address, bool value);
     void multipleCoilsWritten(int startAddress, int count);
@@ -63,9 +62,6 @@ private:
     QModbusTcpClient *m_client = nullptr;
 
     int m_unitId = 1;
-
-    // MessageQueue
-    MessageQueue* m_queue = nullptr;
 };
 
 #endif // __MODBUSCONTROLLER_H__

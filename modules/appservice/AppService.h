@@ -2,7 +2,6 @@
 #define __APPSERVICE_H__
 
 #include <QObject>
-
 #include <memory>
 
 #include "ModbusController.h"
@@ -13,10 +12,16 @@ class AppService : public QObject
 {
     Q_OBJECT
 
+    // MQTT state exposed to QML
+    Q_PROPERTY(bool mqttConnected READ mqttConnected NOTIFY mqttConnectedChanged)
+
 public:
     explicit AppService(QObject *parent = nullptr);
 
-    // --- Modbus API ---
+    // Getter for QML
+    bool mqttConnected() const { return m_mqttConnected; }
+
+    // Modbus API
     Q_INVOKABLE void connectModbus(const QString &host, int port, int unitId);
     Q_INVOKABLE void disconnectModbus();
     Q_INVOKABLE void readRegisters(int start, int count);
@@ -24,22 +29,29 @@ public:
     Q_INVOKABLE void readCoils(int start, int count);
     Q_INVOKABLE void writeCoil(int address, bool value);
 
-    // --- MQTT API ---
+    // MQTT API
     Q_INVOKABLE void connectMqtt(const QString &host, int port, int qos);
     Q_INVOKABLE void disconnectMqtt();
-    Q_INVOKABLE void publish(const QString &topic, const QString &payload);
 
 signals:
-    // Пробрасываем сигналы Modbus наружу
+    // Signals exposed to QML
     void logMessage(const QString &msg);
     void registersUpdated(int start, const QVector<quint16> &values);
     void coilsUpdated(int start, const QVector<bool> &values);
 
-private:
-    ModbusController m_modbus;
-    MessageQueue m_queue;
+    // MQTT state changed
+    void mqttConnectedChanged();
 
+private slots:
+    void onRegisters(int start, const QVector<quint16>& values);
+    void onCoils(int start, const QVector<bool>& values);
+
+private:
+    ModbusController* m_modbus = nullptr;
+    MessageQueue m_queue;
     std::unique_ptr<MqttWorker> m_mqtt;
+
+    bool m_mqttConnected = false;
 };
 
 #endif // __APPSERVICE_H__

@@ -21,8 +21,6 @@ qt_add_resources(APP_RESOURCES
 add_executable(${PROJECT_NAME}
     main.cpp
     ${APP_RESOURCES}
-    modules/appservice/AppService.h
-    modules/appservice/AppService.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -30,4 +28,9 @@ target_link_libraries(${PROJECT_NAME}
         Qt6::Core
         Qt6::Quick
         appservice
+)
+
+target_include_directories(${PROJECT_NAME}
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}/modules/appservice
 )
