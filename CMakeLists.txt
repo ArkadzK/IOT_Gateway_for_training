@@ -13,6 +13,7 @@ add_subdirectory(modules/appservice)
 add_subdirectory(modules/messagequeue)
 add_subdirectory(modules/mqttworker)
 add_subdirectory(modules/modbuscontroller)
+add_subdirectory(modules/types)
 
 qt_add_resources(APP_RESOURCES
     resources.qrc
@@ -28,9 +29,4 @@ target_link_libraries(${PROJECT_NAME}
         Qt6::Core
         Qt6::Quick
         appservice
-)
-
-target_include_directories(${PROJECT_NAME}
-    PRIVATE
-    ${PROJECT_SOURCE_DIR}/modules/appservice
 )

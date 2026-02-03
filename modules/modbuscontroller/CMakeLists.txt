@@ -13,4 +13,6 @@ target_link_libraries(modbuscontroller
         Qt6::Core
         Qt6::SerialBus
         messagequeue
+    PRIVATE
+        types
 )
