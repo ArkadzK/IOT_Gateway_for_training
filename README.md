@@ -12,42 +12,58 @@ The architecture is designed to be **loosely coupled**, **asynchronous**, and **
 
 ## Key Features
 
-- Modbus TCP data acquisition
-- MQTT client based on Eclipse Paho
-- Modular architecture with clear separation of responsibilities
-- Message-based communication between modules
+- Modbus TCP client for reading and writing registers and coils
+- MQTT client (Eclipse Paho) with asynchronous message handling
+- Clean modular architecture with explicit boundaries between components
+- Centralized application façade (AppService) for UI integration
 - Qt Quick (QML) user interface
-- CMake-based build system
+- CMake‑based multi‑module build system
 
 ---
 
 ## Architecture
 
-The system follows an **Application Facade** pattern.
+The system follows an **Application Facade** pattern with strict separation of responsibilities.
 
-- `AppService` orchestrates the system and controls module lifecycles
-- `ModbusController` produces data
-- `MqttWorker` consumes data
+- `AppService` Central orchestrator that manages module lifecycles, exposes unified API to QML, and routes signals between subsystems.
+- `ModbusController` Independent Modbus TCP client responsible for device communication.
+  It does not depend on MQTT or MessageQueue.
+- `MqttWorker` Thread‑safe queue used only inside MqttWorker to decouple network callbacks from processing logic.
 - `MessageQueue` decouples producers and consumers
-- `AppService` does **not** generate business data
+- `AppService` does **not** generate business data.
+  It only coordinates modules and exposes their functionality to QML without performing domain‑level computation.
 
 ```mermaid
 flowchart TD
-    UI[QML UI<br/>Main.qml]
 
-    AppService[AppService<br/>Application Facade]
+    %% --- UI Layer ---
+    subgraph UI_Layer[UI Layer]
+        UI[QML UI<br/>Main.qml]
+    end
 
-    Modbus[ModbusController<br/>Modbus RTU/TCP]
-    MQ[MessageQueue<br/>Async Buffer]
-    MQTT[MqttWorker<br/>MQTT Client]
+    %% --- Application Layer ---
+    subgraph App_Layer[Application Layer]
+        AppService[AppService<br/>Application Facade]
+    end
 
+    %% --- Modbus Module ---
+    subgraph Modbus_Module[Modbus Module]
+        Modbus[ModbusController<br/>Modbus TCP Client]
+    end
+
+    %% --- MQTT Module ---
+    subgraph MQTT_Module[MQTT Module]
+        MQTT[MqttWorker<br/>MQTT Client]
+        MQ[MessageQueue<br/>Async Buffer]
+    end
+
+    %% --- Connections ---
     UI --> AppService
+
     AppService --> Modbus
+    AppService --> MQTT
 
-    Modbus --> MQ
-    MQ --> MQTT
-
-    MQTT --> AppService
+    MQTT --> MQ
 ```
 
 ---
@@ -65,7 +81,8 @@ ModbusMaster/
 │   ├── appservice/
 │   ├── messagequeue/
 │   ├── modbuscontroller/
-│   └── mqttworker/
+│   ├── mqttworker/
+│   └── types/
 │
 └── ExtLibs/
     ├── paho-mqtt-c/
@@ -85,23 +102,33 @@ ModbusMaster/
 
 ### ModbusController
 - Communicates with Modbus TCP devices
-- Periodically reads registers
-- Produces data messages and pushes them to `MessageQueue`
+- Performs asynchronous reading and writing of registers and coils
+- Emits signals with received data
+- Does not use `MessageQueue`
+- Fully encapsulates Modbus protocol logic
 
 ### MessageQueue
-- Asynchronous transport between modules
-- Decouples data producers and consumers
+- Thread‑safe asynchronous buffer
+- Used only inside MqttWorker
+- Decouples network callbacks from message processing
 
 ### MqttWorker
-- Consumes messages from `MessageQueue`
-- Publishes data to MQTT broker
+- MQTT client based on Eclipse Paho
+- Manages connection, subscription, and publishing
+- Uses `MessageQueue` internally for asynchronous message handling
+- Does not depend on `ModbusController`
 
+### types
+- Common enums, data types, and shared definitions
+- Lightweight module used across the entire system
+- 
 ---
 
 ## External Libraries
 
 - Eclipse Paho MQTT C
 - Eclipse Paho MQTT C++
+- Qt SerialBus (for Modbus TCP)
 
 ---
 
