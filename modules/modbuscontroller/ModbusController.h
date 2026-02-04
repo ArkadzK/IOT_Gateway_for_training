@@ -8,26 +8,18 @@
 #include <QtSerialBus/QModbusTcpClient>
 #include <QtSerialBus/QModbusDevice>
 
-// #include "MessageQueue.h"
+#include "ModbusTypes.h"
 
 class ModbusController : public QObject
 {
     Q_OBJECT
 
 public:
-    enum ConnectionState {
-        Disconnected,
-        Connecting,
-        Connected,
-        Error
-    };
-    Q_ENUM(ConnectionState)
-
-    Q_PROPERTY(ConnectionState state READ state NOTIFY stateChanged)
-
-    ConnectionState state() const { return m_state; }
+    Q_PROPERTY(ModbusTypes::ConnectionState state READ state NOTIFY stateChanged)
 
     explicit ModbusController(QObject *parent = nullptr);
+
+    ModbusTypes::ConnectionState state() const;
 
     // TCP/IP connection
     Q_INVOKABLE void connectToServer(const QString &host, int port, int unitId);
@@ -41,7 +33,7 @@ public:
     Q_INVOKABLE void writeMultipleCoils(int startAddress, const QVector<bool>& values);
 
 signals:
-    void stateChanged(ConnectionState newState);
+    void stateChanged(ModbusTypes::ConnectionState state);
     void logMessage(const QString &message);
 
     void holdingRegistersRead(int startAddress, const QVector<quint16> &values); // Регистры 16бит
@@ -54,11 +46,11 @@ private slots:
     void onErrorOccurred(QModbusDevice::Error error);
 
 private:
-    void setState(ConnectionState newState);
+    void setState(ModbusTypes::ConnectionState newState);
     void log(const QString &text);
 
     // Modbus
-    ConnectionState m_state = Disconnected;
+    ModbusTypes::ConnectionState m_state = ModbusTypes::Disconnected;
     QModbusTcpClient *m_client = nullptr;
 
     int m_unitId = 1;

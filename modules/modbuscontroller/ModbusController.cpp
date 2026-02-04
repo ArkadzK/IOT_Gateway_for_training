@@ -20,6 +20,11 @@ ModbusController::ModbusController (QObject *parent) : QObject(parent)
             this, &ModbusController::onErrorOccurred);
 }
 
+ModbusTypes::ConnectionState ModbusController::state() const
+{
+    return m_state;
+}
+
 void ModbusController::connectToServer(const QString &host, int port, int unitId)
 {
     if (host.isEmpty() || port <= 0 || port > 65535) {
@@ -40,7 +45,7 @@ void ModbusController::connectToServer(const QString &host, int port, int unitId
     m_client->setTimeout(3000);
     m_client->setNumberOfRetries(3);
 
-    setState(Connecting);
+    setState(ModbusTypes::Connecting);
     m_client->connectDevice();
 }
 
@@ -55,18 +60,18 @@ void ModbusController::onStateChanged(QModbusDevice::State state)
     switch (state) {
     case QModbusDevice::ConnectingState:
         log("Connecting...");
-        setState(Connecting);
+        setState(ModbusTypes::Connecting);
         break;
     case QModbusDevice::ConnectedState:
         log("Connection established");
-        setState(Connected);
+        setState(ModbusTypes::Connected);
         break;
     case QModbusDevice::ClosingState:
         log("Closing connection...");
         break;
     case QModbusDevice::UnconnectedState:
         log("Disconnected");
-        setState(Disconnected);
+        setState(ModbusTypes::Disconnected);
         break;
     default:
         break;
@@ -79,10 +84,10 @@ void ModbusController::onErrorOccurred(QModbusDevice::Error error)
         return;
 
     log("Connection error: " + m_client->errorString());
-    setState(Error);
+    setState(ModbusTypes::Error);
 }
 
-void ModbusController::setState(ConnectionState newState)
+void ModbusController::setState(ModbusTypes::ConnectionState newState)
 {
     if (m_state == newState)
         return;
