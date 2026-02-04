@@ -10,11 +10,14 @@ AppService::AppService(QObject *parent) : QObject(parent)
     // Пробрасываем сигналы Modbus наружу
     connect(m_modbus, &ModbusController::logMessage,
             this, &AppService::logMessage);
-
+    // connect(m_modbus, &ModbusController::ConnectionState,
+    //         this, &AppService::stateChanged);
     connect(m_modbus, &ModbusController::holdingRegistersRead,
             this, &AppService::onRegisters);
     connect(m_modbus, &ModbusController::coilsRead,
             this, &AppService::onCoils);
+    connect(m_modbus, &ModbusController::stateChanged,
+            this, &AppService::stateChanged);
 }
 
 // MODBUS

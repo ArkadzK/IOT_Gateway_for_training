@@ -8,9 +8,14 @@
 #include "MqttWorker.h"
 #include "MessageQueue.h"
 
+#include "ModbusTypes.h"
+
 class AppService : public QObject
 {
     Q_OBJECT
+
+    // Modbus state
+    Q_PROPERTY(ModbusTypes::ConnectionState state READ state NOTIFY stateChanged)
 
     // MQTT state exposed to QML
     Q_PROPERTY(bool mqttConnected READ mqttConnected NOTIFY mqttConnectedChanged)
@@ -29,6 +34,9 @@ public:
     Q_INVOKABLE void readCoils(int start, int count);
     Q_INVOKABLE void writeCoil(int address, bool value);
 
+    ModbusTypes::ConnectionState state() const {
+        return m_modbus->state(); }
+
     // MQTT API
     Q_INVOKABLE void connectMqtt(const QString &host, int port, int qos);
     Q_INVOKABLE void disconnectMqtt();
@@ -39,6 +47,8 @@ signals:
     void registersUpdated(int start, const QVector<quint16> &values);
     void coilsUpdated(int start, const QVector<bool> &values);
 
+    // Modbus state
+    void stateChanged(ModbusTypes::ConnectionState newState);
     // MQTT state changed
     void mqttConnectedChanged();
 
