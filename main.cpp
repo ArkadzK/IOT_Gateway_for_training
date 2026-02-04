@@ -12,6 +12,12 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    qmlRegisterUncreatableType<ModbusTypes>(
+        "Modbus", 1, 0, "ModbusTypes",
+        "Enum holder"
+    );
+
+
     engine.rootContext()->setContextProperty("app", &service);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));

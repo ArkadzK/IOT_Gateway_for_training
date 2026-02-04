@@ -2,9 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls.Material
-// import ModbusMaster 1.0
-
-// import Backend 1.0
+import Modbus 1.0
 
 ApplicationWindow {
     visible: true
@@ -81,14 +79,14 @@ ApplicationWindow {
 
                     TextField {
                         id: hostField
-                        enabled: app.state === app.Disconnected
+                        enabled: app.state === ModbusTypes.Disconnected
                         placeholderText: "IP address"
                         Layout.fillWidth: true
                     }
 
                     TextField {
                         id: portField
-                        enabled: app.state === app.Disconnected
+                        enabled: app.state === ModbusTypes.Disconnected
                         placeholderText: "Port"
                         inputMethodHints: Qt.ImhDigitsOnly
                         Layout.preferredWidth: 100
@@ -96,7 +94,7 @@ ApplicationWindow {
 
                     TextField {
                         id: unitField
-                        enabled: app.state === app.Disconnected
+                        enabled: app.state === ModbusTypes.Disconnected
                         placeholderText: "Unit ID"
                         inputMethodHints: Qt.ImhDigitsOnly
                         Layout.preferredWidth: 100
@@ -107,19 +105,19 @@ ApplicationWindow {
 
                         text: {
                             switch (app.state) {
-                            case app.Disconnected: return "Connect"
-                            case app.Connecting:   return "Connecting..."
-                            case app.Connected:    return "Disconnect"
-                            case app.Error:        return "Retry"
+                            case ModbusTypes.Disconnected: return "Connect"
+                            case ModbusTypes.Connecting:   return "Connecting..."
+                            case ModbusTypes.Connected:    return "Disconnect"
+                            case ModbusTypes.Error:        return "Retry"
                             }
                         }
 
-                        enabled: app.state !== app.Connecting
+                        enabled: app.state !== ModbusTypes.Connecting
 
                         onClicked: {
                             switch (app.state) {
 
-                            case app.Disconnected:
+                            case ModbusTypes.Disconnected:
                                 var host = hostField.text
                                 var port = parseInt(portField.text)
                                 var unit = parseInt(unitField.text)
@@ -135,11 +133,11 @@ ApplicationWindow {
                                 app.connectModbus(host, port, unit)
                                 break
 
-                            case app.Connected:
+                            case ModbusTypes.Connected:
                                 app.disconnectModbus()
                                 break
 
-                            case app.Error:
+                            case ModbusTypes.Error:
                                 app.connectModbus(
                                     hostField.text,
                                     parseInt(portField.text),
@@ -272,7 +270,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Read"
-                                enabled: app.state === app.Connected
+                                enabled: app.state === ModbusTypes.Connected
                                 onClicked: {
                                     var addr = parseInt(readAddressField.text)
                                     var cnt = parseInt(readCountField.text)
@@ -311,7 +309,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Write"
-                                enabled: app.state === app.Connected
+                                enabled: app.state === ModbusTypes.Connected
 
                                 onClicked: {
                                     var addr = parseInt(writeAddressField.text)
@@ -410,7 +408,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Read"
-                                enabled: app.state === app.Connected
+                                enabled: app.state === ModbusTypes.Connected
 
                                 onClicked: {
                                     var addr = parseInt(readCoilsAddressField.text)
@@ -449,7 +447,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Write"
-                                enabled: app.state === app.Connected
+                                enabled: app.state === ModbusTypes.Connected
 
                                 onClicked: {
                                     var addr = parseInt(writeCoilAddressField.text)
